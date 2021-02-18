@@ -1,3 +1,2 @@
 # tsm
-hoi
-hoit2
+run program in cmd type in directory run_assignment.sh
