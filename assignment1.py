@@ -191,9 +191,7 @@ def main(gethelp, path='path', columns = [1], estimate='yes', missing='', foreca
     if(missing == '' and forecast == ''):
         model.plot_2_1()
         model.plot_2_2()
-        model.plot_2_3()
-        
-
+        model.plot_2_3() 
 
     if(missing != ''):
         model.plot_2_5()
@@ -201,8 +199,8 @@ def main(gethelp, path='path', columns = [1], estimate='yes', missing='', foreca
     if(forecast != ''):
         model.plot_2_6()
     
-
     model.plot_2_7()
+    model.plot_2_8()
 
 
 

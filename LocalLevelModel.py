@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import scipy.stats as stats
 import statsmodels.graphics.gofplots as gofplots
 
+
 class LocalLevelModel:
     """
         A class to represent a local level model 
@@ -14,17 +15,19 @@ class LocalLevelModel:
 
         Attributes
         ----------
-        name : str
-            first name of the person
-        surname : str
-            family name of the person
-        age : int
-            age of the person
+        df : pandas
+            dataset
+        or_df : str
+            original dataset of the locallevelmodel
+        sigma_e2 : int
+        sigma_eta2 : int
+        forecast : str
+            
 
         Methods
         -------
         info(additional=""):
-            Prints the person's name and age.
+            Prints the local level models 's df.
     """
 
 
@@ -37,12 +40,15 @@ class LocalLevelModel:
 
 
     def initialize(self, A_1, P_1):
-        d = pd.DataFrame(np.zeros(((len(self.df)), 26)))
-        columns = [ 'y', 'v_t', 'a_t','a_t_lower','a_t_upper','a_t_lower_5','a_t_upper_5', 'F_t', 'P_t', 'K_t', 'P_tt', 'a_tt', 'a_t1', 'P_t1','L_t','R_t', 'a_hat_t','a_hat_t_lower','a_hat_t_upper', 'N_t','V_t','D_t', 'e_t', 'e_t_std','eta_t', 'eta_t_std', 'error']
+        d = pd.DataFrame(np.zeros(((len(self.df)), 29)))
+        columns = [ 'y', 'v_t', 'a_t','a_t_lower','a_t_upper','a_t_lower_5','a_t_upper_5', 'F_t', 'P_t', 'K_t', 'P_tt', 'a_tt', 'a_t1', 'P_t1','L_t','R_t', 'a_hat_t','a_hat_t_lower','a_hat_t_upper', 'N_t','V_t','D_t', 'e_t', 'e_t_std','eta_t', 'eta_t_std', 'error', 'u_t', 'u_star', 'r_star']
         self.df = pd.concat([self.df,d ], axis = 1, ignore_index = True)
         self.df.columns = columns
         self.df.at[0, 'P_t'] = P_1
         self.df.at[0, 'a_t'] = A_1
+
+            
+
 
     def walkforward(self):
         nf = self.df.to_records(index=False)
@@ -111,13 +117,23 @@ class LocalLevelModel:
             x_curr['D_t'] =  1.0 / x_curr['F_t'] + x_curr['K_t'] ** 2 * x_curr['N_t']
             x_curr['e_t_std'] = np.sqrt(self.sigma_e2 - self.sigma_e2 ** 2 * x_curr['D_t'])    
             x_curr['error'] = x_curr['v_t'] / np.sqrt(x_curr['F_t'])
+            x_curr['u_t']= 1.0 / x_curr['F_t'] * x_curr['v_t'] - x_curr['K_t'] * x_curr['R_t']
+            
+            if(x != nf.shape[0]-1 ):
+                x_curr['u_star'] = 1.0 / np.sqrt(x_curr['D_t']) * x_curr['u_t']
+                x_curr['r_star'] = 1.0 / np.sqrt(x_curr['N_t']) * x_curr['R_t']
+
             
         self.df = pd.DataFrame(data=nf)
 
 
-    def plot(self,title):
+    def plot(self,title, subtitle):
         fig, ax = plt.subplots(2,2,constrained_layout=True)
         fig.suptitle(title, fontsize=14, fontweight='bold')
+        ax[0,0].set_title(subtitle[0])
+        ax[0,1].set_title(subtitle[1])
+        ax[1,0].set_title(subtitle[2])
+        ax[1,1].set_title(subtitle[3])
         return fig, ax
     
     def plot_legend(self,ax):
@@ -129,37 +145,61 @@ class LocalLevelModel:
 
     
     def plot_2_1(self):
-        fig, ax = self.plot('2.1: data, smoothed state and confidence bounds')
+        fig, ax = self.plot('2.1: data, smoothed state and confidence bounds', [
+            'data (dots), filtered state at',
+            'filtered state variance Pt', 
+            'prediction errors vt',
+            'prediction variance Ft'
+            ])
         ax[0,0].plot(self.df.index, self.df['y'],'b.', label='y')
         ax[0,0].plot(self.df.index[1:], self.df.loc[1:, ['a_t']],'-k', label='a_t',)
         ax[0,0].plot(self.df.index[1:], self.df.loc[1:, ['a_t_lower']],'--g', label='lowerbound')
         ax[0,0].plot(self.df.index[1:], self.df.loc[1:, ['a_t_upper']],'--g', label='upperbound')
         ax[0,1].plot(self.df.index[1:], self.df.loc[1:, ['P_t']],'-k', label='P_t')
         ax[1,0].plot(self.df.index[1:], self.df.loc[1:, ['v_t']],'-k', label='v_t')
+        ax[1,0].axhline(y=0)
         ax[1,1].plot(self.df.index[1:], self.df.loc[1:, ['F_t']],'-k', label='F_t')
         self.plot_legend(ax)
         
     def plot_2_2(self):
-        fig, ax = self.plot('2.2: output of state smoothing recursion')          
+        fig, ax = self.plot('2.2: output of state smoothing recursion', [
+            'data (dots), smoothed state ˆαt',
+            'smoothed state variance Vt', 
+            'smoothing cumulant rt',
+            'smoothing variance cumulant Nt'
+            ])       
         ax[0,0].plot(self.df.index, self.df['y'],'b.', label='y')
         ax[0,0].plot(self.df.index[1:], self.df.loc[1:, ['a_hat_t']],'-k', label='a_hat_t',)
         ax[0,0].plot(self.df.index[1:], self.df.loc[1:, ['a_hat_t_lower']],'--g', label='lowerbound')
         ax[0,0].plot(self.df.index[1:], self.df.loc[1:, ['a_hat_t_upper']],'--g', label='upperbound')
         ax[0,1].plot(self.df.index[1:(len(self.df)-1)], self.df.loc[1:(len(self.df)-2), ['V_t']],'-k', label='V_t')
         ax[1,0].plot(self.df.index[1:], self.df.loc[1:, ['R_t']],'-k', label='r_t')
+        ax[1,0].axhline(y=0)
         ax[1,1].plot(self.df.index[:(len(self.df)-1)], self.df.loc[:(len(self.df)-2), ['N_t']],'-k', label='N_t')
         self.plot_legend(ax)
 
     def plot_2_3(self):
-        fig, ax = self.plot('2.3: output of disturbance smoothing recursion')
+        fig, ax = self.plot('2.3: output of disturbance smoothing recursion', [
+            'observation error ˆεt',
+            'observation error variance Var(εt|Yn)', 
+            'state error ˆηt',
+            'state error variance Var(ηt|Yn)'
+            ])   
         ax[0,0].plot(self.df.index, self.df.loc[:, ['e_t']],'-k', label='observation error')
+        ax[0,0].axhline(y=0)
         ax[0,1].plot(self.df.index, self.df.loc[:, ['e_t_std']],'-k', label='std of observation error')
         ax[1,0].plot(self.df.index, self.df.loc[:, ['eta_t']],'-k', label='state error')
+        ax[1,0].axhline(y=0)
         ax[1,1].plot(self.df.index, self.df.loc[:, ['eta_t_std']],'-k', label='std of state error')
         self.plot_legend(ax)
 
     def plot_2_5(self):
-        fig, ax = self.plot('2.5: output when observations are missing')
+        fig, ax = self.plot('2.5: output when observations are missing', [
+            'data and filtered state at (extrapolation)',
+            'filtered state variance Pt', 
+            'data and smoothed state ˆαt (interpolation)',
+            'smoothed state variance Vt'
+            ])  
         ax[0,0].plot(self.or_df.index, self.or_df['y'],'-k', label='y')
         ax[0,0].plot(self.df.index[1:], self.df.loc[1:, ['a_t']],'-k', label='a_t',)
         ax[0,1].plot(self.df.index[1:], self.df.loc[1:, ['P_t']],'-k', label='P_t')
@@ -168,9 +208,13 @@ class LocalLevelModel:
         ax[1,1].plot(self.df.index[1:(len(self.df)-1)], self.df.loc[1:(len(self.df)-2), ['V_t']],'-k', label='V_t')
         self.plot_legend(ax)
 
-
     def plot_2_6(self):
-        fig, ax = self.plot('2.6: output of forecasting')
+        fig, ax = self.plot('2.6: output of forecasting', [
+            'data (dots), state forecast',
+            'state variance Pt', 
+            'observation forecast E(yt|Yt−1)',
+            'observation forecast variance Ft'
+            ])  
         n_rows = len(self.df)-int(self.forecast)
         ax[0,0].plot(self.or_df.index, self.or_df['y'],'b.', label='y')
         ax[0,0].plot(self.df.index[1:], self.df.loc[1:, ['a_t']],'-k', label='a_t')
@@ -182,42 +226,62 @@ class LocalLevelModel:
         self.plot_legend(ax)
 
     def plot_2_7(self):
-        fig, ax = self.plot('2.7: output standardised residual')
+        fig, ax = self.plot('2.7: output standardised prediction errors', [
+            'standardised residual',
+            'histogram plus estimated density', 
+            'ordered residuals',
+            'correlogram'
+            ]) 
         ax[0,0].plot(self.df['error'],label= 'standardised residual')
+        ax[0,0].axhline(y=0)
         density = stats.gaussian_kde(self.df['error'])
         x_lim = np.linspace(-3.6,3.6)
         ax[0,1].hist(self.df['error'], bins=12, density=1, histtype='bar', ec='k', color='white')
         ax[0,1].plot(x_lim, density(x_lim), color='k')
         gofplots.ProbPlot(np.sort(self.df['error'])).qqplot(line="45", ax = ax[1,0])
+        ax[1,0].axhline(y=0)
+        #todo: change to bar chart
         ax[1,1].acorr(self.df['error'])
         ax[1,1].set_xlim([0, 11])
         ax[1,1].set_ylim([-0.8, 0.8])
         self.plot_legend(ax)
-
-        # def plot2_7(self, name_dataset):
-        # text = 'for the %s data set' % name_dataset
-        # plot(self.e, 'standardised residual %s' % text, '2_7', xaxis=True)
-        # density = stats.gaussian_kde(self.e)
-        # x_lim = np.linspace(-3.6,3.6)
-        # plt.figure()
-        # plt.title('histogram of standardised residuals %s' % text)
-        # plt.hist(self.e, bins=12, density=1, histtype='bar', ec='k', color='white')
-        # plt.plot(x_lim, density(x_lim), color='k')
-        # plt.savefig('2_7 histogram of standardised residuals %s' % text)
-        # plt.close()
-
-        # plt.figure()
-        # plt.title('ordered residuals %s' % text)
-        # gofplots.ProbPlot(np.sort(self.e)).qqplot(line="45")
-        # plt.savefig('2_7 ordered residuals %s' % text)
-        # plt.close()
-
-        # plt.figure()
-        # plt.title('correlogram of the standardised residuals %s' % text)
-        # plt.acorr(self.e)
-        # plt.xlim([0, 11])
-        # plt.ylim([-0.8, 0.8])
-        # plt.savefig('2_7 correlogram of the standardised residuals %s' % text)
+       
+       
+        #plt.bar(range(1, n), c[1:], color='grey', edgecolor='k')
+        #plt.yticks((-1,-0.5,0,0.5,1))
+        #plt.show()
+        # n = 11
+        # c = np.zeros(n)
+        # for j in range(n):
+        #     et_sum = 0
+        #     for t in range(j+1, len(standardized_residuals)):
+        #         et_sum += (standardized_residuals[t]-m1) * (standardized_residuals[t-j]-m1)
+        #     c[j] = (1/(len(standardized_residuals)*m2)) * et_sum
+        # plt.bar(range(1, n), c[1:], color='grey', edgecolor='k')
+        # plt.yticks((-1,-0.5,0,0.5,1))
         # plt.show()
-        # plt.close()
-        
+
+
+    def plot_2_8(self):
+        fig, ax = self.plot('2.8: output Diagnostic plots for auxiliary residuals', [
+            'observation residual u∗t',
+            'histogram and estimated density for u∗t', 
+            'state residual r∗t',
+            'histogram and estimated density for r∗t'
+            ]) 
+        x_lim = np.linspace(-4,3)
+        ax[0,0].plot(self.df.index[:(len(self.df)-1)], self.df.loc[:(len(self.df)-2), ['u_star']],'-k', label='u_star')
+        ax[0,0].axhline(y=0)
+        density = stats.gaussian_kde(self.df['u_star'].values.tolist())
+        ax[0,1].hist(self.df.loc[:(len(self.df)-2), ['u_star']], histtype='bar', ec='k', color='white', density=1, bins=13)
+        ax[0,1].plot(x_lim, density(x_lim), color='k')
+        ax[1,0].plot(self.df.index[:(len(self.df)-1)], self.df.loc[:(len(self.df)-2), ['r_star']],'-k', label='r_star')
+        ax[1,0].axhline(y=0)
+        density = stats.gaussian_kde(self.df['r_star'].values.tolist())
+        ax[1,1].hist(self.df.loc[:(len(self.df)-2), ['r_star']], histtype='bar', ec='k', color='white', density=1, bins=13)
+        ax[1,1].plot(x_lim, density(x_lim), color='k')
+        self.plot_legend(ax)
+
+      
+
+
