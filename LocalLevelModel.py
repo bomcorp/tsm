@@ -190,8 +190,8 @@ class LocalLevelModel:
         ax[0,1].plot(x_lim, density(x_lim), color='k')
         gofplots.ProbPlot(np.sort(self.df['error'])).qqplot(line="45", ax = ax[1,0])
         ax[1,1].acorr(self.df['error'])
-        ax[1,1].xlim([0, 11])
-        ax[1,1].ylim([-0.8, 0.8])
+        ax[1,1].set_xlim([0, 11])
+        ax[1,1].set_ylim([-0.8, 0.8])
         self.plot_legend(ax)
 
         # def plot2_7(self, name_dataset):
