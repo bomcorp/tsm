@@ -35,11 +35,9 @@ def load_data(file_name, header_rows = 1, columns =0, delimiter=','):
     return data
 
 def export_data(dataset, path):
+    '''writes data from dataframe to path '''
     df = pd.DataFrame(dataset)
     df.to_csv(path.replace('.', 'export.'))
-
-
-
 
 def convert_data_tolist(dataset):
     data = dataset['y'].values.tolist()
@@ -166,6 +164,7 @@ def main(gethelp, path='path', columns = [1], estimate='yes', missing='', foreca
     #q * sigma_e2
     SIGMA_eta2 = 1469.1
 
+    #estimate parameters
     if(estimate == 'yes'):
         print("Perform parameter estimation...")
         q, sigma_e2_hat = parameter_estimation(dataset)
@@ -186,19 +185,20 @@ def main(gethelp, path='path', columns = [1], estimate='yes', missing='', foreca
     model.disturbance()
 
     export_data(model.df, path)
-    print(model.df)
     
+
+    #plot
     if(missing == '' and forecast == ''):
         model.plot_2_1()
         model.plot_2_2()
         model.plot_2_3() 
 
-    if(missing != ''):
+    if(missing != ''  and forecast == ''):
         model.plot_2_5()
 
-    if(forecast != ''):
+    if(missing == '' and forecast != ''):
         model.plot_2_6()
-    
+
     model.plot_2_7()
     model.plot_2_8()
 

@@ -37,6 +37,7 @@ class LocalLevelModel:
         self.sigma_e2 = sigma_e2_hat
         self.sigma_eta2 = sigma_eta2_hat
         self.forecast = forecast
+        self.diagnostics = pd.DataFrame(np.zeros(((4), 8)))
 
 
     def initialize(self, A_1, P_1):
@@ -47,6 +48,21 @@ class LocalLevelModel:
         self.df.at[0, 'P_t'] = P_1
         self.df.at[0, 'a_t'] = A_1
 
+
+    def add_diagnostics(self, h, k):
+        self.diagnostics.columns =  ['m1', 'm2', 'm3', 'm4', 'S', 'excess K', 'H(%d)' % h, 'Q(%d)' % k]
+        m1 = sum(self.df['error']) / len(self.df['error'])
+        m2 = calc_moment(2, e, m1)
+        m3 = calc_moment(3, e, m1)
+        m4 = calc_moment(4, e, m1)
+        S = m3 / np.sqrt(m2 ** 3)
+        K = m4 / (m2 ** 2) - 3
+        H = calc_H(e, h)
+        Q = calc_Q(e, k, m1, m2)
+        value_vector = [m1, m2, m3, m4, S, K, H, Q]
+        for i in range(len(name_vector)):
+            print('%12s   %.3f' % (name_vector[i], value_vector[i]))
+        print(scipy.stats.kurtosis(e), scipy.stats.skew(e))
             
 
 
@@ -70,7 +86,6 @@ class LocalLevelModel:
                 x_curr['y'] = x_curr['a_t'] 
             else:
                 x_curr['K_t'] = x_curr['P_t'] / x_curr['F_t']
-                
 
             x_curr['P_tt'] = x_curr['P_t'] * (1-x_curr['K_t'])
             x_curr['v_t'] = x_curr['y'] - x_curr['a_t']
@@ -90,7 +105,6 @@ class LocalLevelModel:
 
         for x in range(nf.shape[0]-1,0, -1):
             x_curr = nf[x]
-
             x_curr['L_t'] = 1.0-x_curr['K_t']
 
             if(x != 0):
@@ -101,7 +115,6 @@ class LocalLevelModel:
                 x_curr['V_t'] = x_curr['P_t']-(x_curr['P_t']**2) * x_last['N_t']
                 x_curr['a_hat_t_lower'] = x_curr['a_hat_t'] + sc.stats.norm.ppf((1-0.9)/2) * np.sqrt(x_curr['V_t'])
                 x_curr['a_hat_t_upper'] = x_curr['a_hat_t'] + sc.stats.norm.ppf((1+0.9)/2) * np.sqrt(x_curr['V_t'])
-
 
         self.df = pd.DataFrame(data=nf)
 
@@ -122,7 +135,6 @@ class LocalLevelModel:
             if(x != nf.shape[0]-1 ):
                 x_curr['u_star'] = 1.0 / np.sqrt(x_curr['D_t']) * x_curr['u_t']
                 x_curr['r_star'] = 1.0 / np.sqrt(x_curr['N_t']) * x_curr['R_t']
-
             
         self.df = pd.DataFrame(data=nf)
 
