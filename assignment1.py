@@ -40,15 +40,18 @@ def export_data(dataset, path):
     df.to_csv(path.replace('.', 'export.'))
 
 def convert_data_tolist(dataset):
+    '''converts dataset column to list '''
     data = dataset['y'].values.tolist()
     return data
 
 def delete_data(dataset, missing_indices):
+    '''delete ranges in the dataset '''
     for indice in missing_indices:
         dataset.loc[indice[0]:indice[1], ['y']] = np.NaN
     return dataset
 
 def add_data(dataset, forecast):
+    '''adds forecast range to dataset '''
     n_rows = len(dataset)
     for x in range(0,forecast):
         dataset.loc[(x+n_rows), ['y']] = np.NaN
@@ -146,17 +149,6 @@ def main(gethelp, path='path', columns = [1], estimate='yes', missing='', foreca
     #load dataset
     dataset = load_data(path, columns = columns)
 
-    #remove missing indices
-    if(missing != ''):
-        dataset = delete_data(dataset, np.array(json.loads(missing)))
-    
-    #add forecast
-    if(forecast != ''):
-        dataset = add_data(dataset, int(forecast))
-
-    #save copy
-    or_dataset = dataset
-    
     #parameters 
     A_1 = 0.0
     P_1 = 10000000.0
@@ -175,6 +167,17 @@ def main(gethelp, path='path', columns = [1], estimate='yes', missing='', foreca
 
     print("estimates: \nsigma_e2_hat: {}\nsigma_eta2_hat: {}".format(sigma_e2_hat, sigma_eta2_hat))
 
+    #remove missing indices
+    if(missing != ''):
+        dataset = delete_data(dataset, np.array(json.loads(missing)))
+    
+    #add forecast
+    if(forecast != ''):
+        dataset = add_data(dataset, int(forecast))
+
+    #save copy
+    or_dataset = dataset
+
     #initialize
     model = llm(dataset,or_dataset, sigma_e2_hat, sigma_eta2_hat, forecast)
     model.initialize(A_1,P_1)
@@ -186,7 +189,6 @@ def main(gethelp, path='path', columns = [1], estimate='yes', missing='', foreca
 
     export_data(model.df, path)
     
-
     #plot
     if(missing == '' and forecast == ''):
         model.plot_2_1()
@@ -202,12 +204,12 @@ def main(gethelp, path='path', columns = [1], estimate='yes', missing='', foreca
     model.plot_2_7()
     model.plot_2_8()
 
-
-
-
-
+    #diagnostics
+    model.add_diagnostics(33, 9)
+    model.print_diagnostics()
 
 def _cli():
+    '''add arguments to commandline '''
     parser = argparse.ArgumentParser(
             description=__doc__,
             formatter_class=argparse.ArgumentDefaultsHelpFormatter,

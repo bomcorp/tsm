@@ -37,10 +37,10 @@ class LocalLevelModel:
         self.sigma_e2 = sigma_e2_hat
         self.sigma_eta2 = sigma_eta2_hat
         self.forecast = forecast
-        self.diagnostics = pd.DataFrame(np.zeros(((4), 8)))
 
 
     def initialize(self, A_1, P_1):
+        '''adds all the variables to one matrix '''
         d = pd.DataFrame(np.zeros(((len(self.df)), 29)))
         columns = [ 'y', 'v_t', 'a_t','a_t_lower','a_t_upper','a_t_lower_5','a_t_upper_5', 'F_t', 'P_t', 'K_t', 'P_tt', 'a_tt', 'a_t1', 'P_t1','L_t','R_t', 'a_hat_t','a_hat_t_lower','a_hat_t_upper', 'N_t','V_t','D_t', 'e_t', 'e_t_std','eta_t', 'eta_t_std', 'error', 'u_t', 'u_star', 'r_star']
         self.df = pd.concat([self.df,d ], axis = 1, ignore_index = True)
@@ -49,24 +49,63 @@ class LocalLevelModel:
         self.df.at[0, 'a_t'] = A_1
 
 
+    def calc_moment(self,q, e, m1):
+        '''calculate moment '''
+        m = 0
+        for x in e:
+            m += (x-m1) ** q
+        return m/len(e)
+
+    def calc_c(self,j, m1, m2, e):
+        c = 0
+        for i in range(j, len(e)):
+            c += (e[i] - m1) * (e[i-j] - m1) / (len(e) * m2)
+        return c
+
+    def calc_Q(self,e, k, m1, m2):
+        result = 0
+        for j in range(k):
+            c_j = self.calc_c(j, m1, m2, e)
+            result += len(e) * (len(e) + 2) * c_j ** 2 / (len(e) - j)
+        return result
+
+    def calc_H(self,e, h):
+        numerator = 0
+        for i in range(len(e)-h, len(e)):
+            numerator += e[i] ** 2
+        denominator = 0
+        for i in range(h):
+            denominator += e[i] ** 2
+        return numerator / denominator
+
     def add_diagnostics(self, h, k):
-        self.diagnostics.columns =  ['m1', 'm2', 'm3', 'm4', 'S', 'excess K', 'H(%d)' % h, 'Q(%d)' % k]
-        m1 = sum(self.df['error']) / len(self.df['error'])
-        m2 = calc_moment(2, e, m1)
-        m3 = calc_moment(3, e, m1)
-        m4 = calc_moment(4, e, m1)
+        self.diagnostics_columns =  ['m1', 'm2', 'm3', 'm4', 'S', 'excess K', 'H(%d)' % h, 'Q(%d)' % k]
+        e = self.df['error'].values.tolist()
+        m1 = sum(e) / len(e)
+        m2 = self.calc_moment(2, e, m1)
+        m3 = self.calc_moment(3, e, m1)
+        m4 = self.calc_moment(4, e, m1)
         S = m3 / np.sqrt(m2 ** 3)
         K = m4 / (m2 ** 2) - 3
-        H = calc_H(e, h)
-        Q = calc_Q(e, k, m1, m2)
-        value_vector = [m1, m2, m3, m4, S, K, H, Q]
-        for i in range(len(name_vector)):
-            print('%12s   %.3f' % (name_vector[i], value_vector[i]))
-        print(scipy.stats.kurtosis(e), scipy.stats.skew(e))
+        H = self.calc_H(e, h)
+        Q = self.calc_Q(e, k, m1, m2)
+        self.diagnostics_values = [m1, m2, m3, m4, S, K, H, Q]
+
+    def print_diagnostics(self):
+        print('_______________________________')
+        print('Diagnostics')
+        print('-------------------------------')
+        e = self.df['error'].values.tolist()
+        for i in range(len(self.diagnostics_columns)):
+            print('%12s   %.3f' % (self.diagnostics_columns[i], self.diagnostics_values[i]))
+        print('-------------------------------')
+        print('Kurtosis & Skew')
+        print(sc.stats.kurtosis(e), sc.stats.skew(e))
+        print('_______________________________')
             
 
-
     def walkforward(self):
+        '''calculates kalman filter '''
         nf = self.df.to_records(index=False)
         for x in range(0,nf.shape[0]):
             x_curr = nf[x]
@@ -101,6 +140,7 @@ class LocalLevelModel:
 
 
     def walkbackward(self):
+        '''calculates smoothing '''
         nf = self.df.to_records(index=False)
 
         for x in range(nf.shape[0]-1,0, -1):
@@ -134,7 +174,7 @@ class LocalLevelModel:
             
             if(x != nf.shape[0]-1 ):
                 x_curr['u_star'] = 1.0 / np.sqrt(x_curr['D_t']) * x_curr['u_t']
-                x_curr['r_star'] = 1.0 / np.sqrt(x_curr['N_t']) * x_curr['R_t']
+                x_curr['r_star'] = 1.0 / np.sqrt(x_curr['N_t']) * x_curr['R_t'] if x_curr['R_t'] != 0 else np.nan
             
         self.df = pd.DataFrame(data=nf)
 
@@ -148,7 +188,7 @@ class LocalLevelModel:
         ax[1,1].set_title(subtitle[3])
         return fig, ax
     
-    def plot_legend(self,ax):
+    def plot_legend(self, ax):
         ax[0,0].legend()
         ax[1,0].legend()
         ax[0,1].legend()
@@ -284,12 +324,12 @@ class LocalLevelModel:
         x_lim = np.linspace(-4,3)
         ax[0,0].plot(self.df.index[:(len(self.df)-1)], self.df.loc[:(len(self.df)-2), ['u_star']],'-k', label='u_star')
         ax[0,0].axhline(y=0)
-        density = stats.gaussian_kde(self.df['u_star'].values.tolist())
+        density = stats.gaussian_kde(self.df['u_star'].dropna().values.tolist())
         ax[0,1].hist(self.df.loc[:(len(self.df)-2), ['u_star']], histtype='bar', ec='k', color='white', density=1, bins=13)
         ax[0,1].plot(x_lim, density(x_lim), color='k')
         ax[1,0].plot(self.df.index[:(len(self.df)-1)], self.df.loc[:(len(self.df)-2), ['r_star']],'-k', label='r_star')
         ax[1,0].axhline(y=0)
-        density = stats.gaussian_kde(self.df['r_star'].values.tolist())
+        density = stats.gaussian_kde(self.df['r_star'].dropna().values.tolist())
         ax[1,1].hist(self.df.loc[:(len(self.df)-2), ['r_star']], histtype='bar', ec='k', color='white', density=1, bins=13)
         ax[1,1].plot(x_lim, density(x_lim), color='k')
         self.plot_legend(ax)
