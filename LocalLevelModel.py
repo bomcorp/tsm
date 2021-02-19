@@ -270,10 +270,10 @@ class LocalLevelModel:
             ])  
         st = self.startyear
         ax[0,0].plot(self.or_df.index+st, self.or_df['y'],'-k', label='y')
-        ax[0,0].plot(self.df.index[1:]+st, self.df.loc[1:, ['a_t']],'-k', label='a_t',color='k')
+        ax[0,0].plot(self.df.index[1:]+st, self.df.loc[1:, ['a_t']],'-b', label='a_t')
         ax[0,1].plot(self.df.index[1:]+st, self.df.loc[1:, ['P_t']],'-k', label='P_t')
         ax[1,0].plot(self.or_df.index+st, self.or_df['y'],'-k', label='y')
-        ax[1,0].plot(self.df.index[1:]+st, self.df.loc[1:, ['a_hat_t']],'-k', label='a_hat_t', color='k')
+        ax[1,0].plot(self.df.index[1:]+st, self.df.loc[1:, ['a_hat_t']],'-b', label='a_hat_t')
         ax[1,1].plot(self.df.index[1:(len(self.df)-1)]+st, self.df.loc[1:(len(self.df)-2), ['V_t']],'-k', label='V_t')
         self.plot_legend(ax)
         #plt.savefig('plots/Fig_Nile_2.5.png')
@@ -317,7 +317,6 @@ class LocalLevelModel:
         ax[0,1].plot(x_lim, density(x_lim), color='k')
         gofplots.ProbPlot(np.sort(self.df['error'])).qqplot(line="45", ax = ax[1,0])
         ax[1,0].axhline(y=0)
-        #todo: change to bar chart
         ax[1,1].acorr(self.df['error'])
         ax[1,1].set_xlim([0, 11])
         ax[1,1].set_ylim([-0.8, 0.8])
