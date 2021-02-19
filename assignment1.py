@@ -32,6 +32,7 @@ def load_data(file_name, header_rows = 1, columns =0, delimiter=','):
     '''
     data = pd.read_csv(file_name, skiprows=0,delimiter = delimiter,skip_blank_lines=True,na_filter = True, usecols = columns,index_col=False)
     data.columns = ['y']
+    
     return data
 
 def export_data(dataset, path):
@@ -141,7 +142,7 @@ def param_likelihood_func(psi, data):
 
 
 
-def main(gethelp, path='path', columns = [1], estimate='yes', missing='', forecast = ''):
+def main(gethelp, path='path', columns = [1], estimate='yes', missing='', forecast = '', startyear = '1871'):
     """Main script"""
 
     print("Running with parameters filepath: {}\ncolumns: {}\nestimate: {}\nmissing: {}\nforecast: {}".format(path, columns, estimate, missing, forecast, gethelp))
@@ -180,7 +181,7 @@ def main(gethelp, path='path', columns = [1], estimate='yes', missing='', foreca
 
     #initialize
     model = llm(dataset,or_dataset, sigma_e2_hat, sigma_eta2_hat, forecast)
-    model.initialize(A_1,P_1)
+    model.initialize(A_1,P_1,startyear=startyear)
 
     #calculate
     model.walkforward()
@@ -194,6 +195,8 @@ def main(gethelp, path='path', columns = [1], estimate='yes', missing='', foreca
         model.plot_2_1()
         model.plot_2_2()
         model.plot_2_3() 
+        model.plot_2_7()
+        model.plot_2_8()
 
     if(missing != ''  and forecast == ''):
         model.plot_2_5()
@@ -201,8 +204,7 @@ def main(gethelp, path='path', columns = [1], estimate='yes', missing='', foreca
     if(missing == '' and forecast != ''):
         model.plot_2_6()
 
-    model.plot_2_7()
-    model.plot_2_8()
+
 
     #diagnostics
     model.add_diagnostics(33, 9)
@@ -219,6 +221,7 @@ def _cli():
     parser.add_argument('-e', '--estimate', help="This is the estimate argument fill in with yes or no")
     parser.add_argument('-m', '--missing', help="Enter missing ranges")
     parser.add_argument('-f', '--forecast', help="Enter forecast range")
+    parser.add_argument('-s', '--startyear', help="Start year")
     parser.add_argument('-gh', '--gethelp', default=3, help="add the path with -p and add if the inital parameters should be estimated or standard should be used with -e yes/no")
     args = parser.parse_args()
     return vars(args)

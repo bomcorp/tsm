@@ -37,9 +37,10 @@ class LocalLevelModel:
         self.sigma_e2 = sigma_e2_hat
         self.sigma_eta2 = sigma_eta2_hat
         self.forecast = forecast
+        
 
 
-    def initialize(self, A_1, P_1):
+    def initialize(self, A_1, P_1, startyear):
         '''adds all the variables to one matrix '''
         d = pd.DataFrame(np.zeros(((len(self.df)), 29)))
         columns = [ 'y', 'v_t', 'a_t','a_t_lower','a_t_upper','a_t_lower_5','a_t_upper_5', 'F_t', 'P_t', 'K_t', 'P_tt', 'a_tt', 'a_t1', 'P_t1','L_t','R_t', 'a_hat_t','a_hat_t_lower','a_hat_t_upper', 'N_t','V_t','D_t', 'e_t', 'e_t_std','eta_t', 'eta_t_std', 'error', 'u_t', 'u_star', 'r_star']
@@ -47,6 +48,7 @@ class LocalLevelModel:
         self.df.columns = columns
         self.df.at[0, 'P_t'] = P_1
         self.df.at[0, 'a_t'] = A_1
+        self.startyear = int(startyear)
 
 
     def calc_moment(self,q, e, m1):
@@ -181,6 +183,8 @@ class LocalLevelModel:
 
     def plot(self,title, subtitle):
         fig, ax = plt.subplots(2,2,constrained_layout=True)
+        fig.set_figheight(8)
+        fig.set_figwidth(8)
         fig.suptitle(title, fontsize=14, fontweight='bold')
         ax[0,0].set_title(subtitle[0])
         ax[0,1].set_title(subtitle[1])
@@ -197,21 +201,25 @@ class LocalLevelModel:
 
     
     def plot_2_1(self):
-        fig, ax = self.plot('2.1: data, smoothed state and confidence bounds', [
+        fig, ax = self.plot('2.1: data, filtered state and confidence bounds', [
             'data (dots), filtered state at',
             'filtered state variance Pt', 
             'prediction errors vt',
             'prediction variance Ft'
             ])
-        ax[0,0].plot(self.df.index, self.df['y'],'b.', label='y')
-        ax[0,0].plot(self.df.index[1:], self.df.loc[1:, ['a_t']],'-k', label='a_t',)
-        ax[0,0].plot(self.df.index[1:], self.df.loc[1:, ['a_t_lower']],'--g', label='lowerbound')
-        ax[0,0].plot(self.df.index[1:], self.df.loc[1:, ['a_t_upper']],'--g', label='upperbound')
-        ax[0,1].plot(self.df.index[1:], self.df.loc[1:, ['P_t']],'-k', label='P_t')
-        ax[1,0].plot(self.df.index[1:], self.df.loc[1:, ['v_t']],'-k', label='v_t')
+        st = self.startyear
+        ax[0,0].plot(self.df.index+st, self.df['y'],'b.', label='y')
+        ax[0,0].plot(self.df.index[1:]+st, self.df.loc[1:, ['a_t']],'-k', label='a_t',)
+        ax[0,0].plot(self.df.index[1:]+st, self.df.loc[1:, ['a_t_lower']],'--g', label='lowerbound')
+        ax[0,0].plot(self.df.index[1:]+st, self.df.loc[1:, ['a_t_upper']],'--g', label='upperbound')
+        ax[0,1].plot(self.df.index[1:]+st, self.df.loc[1:, ['P_t']],'-k', label='P_t')
+        ax[1,0].plot(self.df.index[1:]+st, self.df.loc[1:, ['v_t']],'-k', label='v_t')
         ax[1,0].axhline(y=0)
-        ax[1,1].plot(self.df.index[1:], self.df.loc[1:, ['F_t']],'-k', label='F_t')
+        ax[1,1].plot(self.df.index[1:]+st, self.df.loc[1:, ['F_t']],'-k', label='F_t')
         self.plot_legend(ax)
+        #plt.savefig('plots/Fig_Nile_2.1.png')
+        #plt.close()
+
         
     def plot_2_2(self):
         fig, ax = self.plot('2.2: output of state smoothing recursion', [
@@ -220,30 +228,38 @@ class LocalLevelModel:
             'smoothing cumulant rt',
             'smoothing variance cumulant Nt'
             ])       
-        ax[0,0].plot(self.df.index, self.df['y'],'b.', label='y')
-        ax[0,0].plot(self.df.index[1:], self.df.loc[1:, ['a_hat_t']],'-k', label='a_hat_t',)
-        ax[0,0].plot(self.df.index[1:], self.df.loc[1:, ['a_hat_t_lower']],'--g', label='lowerbound')
-        ax[0,0].plot(self.df.index[1:], self.df.loc[1:, ['a_hat_t_upper']],'--g', label='upperbound')
-        ax[0,1].plot(self.df.index[1:(len(self.df)-1)], self.df.loc[1:(len(self.df)-2), ['V_t']],'-k', label='V_t')
-        ax[1,0].plot(self.df.index[1:], self.df.loc[1:, ['R_t']],'-k', label='r_t')
+        st = self.startyear
+        ax[0,0].plot(self.df.index+st, self.df['y'],'b.', label='y')
+        ax[0,0].plot(self.df.index[1:]+st, self.df.loc[1:, ['a_hat_t']],'-k', label='a_hat_t',)
+        ax[0,0].plot(self.df.index[1:]+st, self.df.loc[1:, ['a_hat_t_lower']],'--g', label='lowerbound')
+        ax[0,0].plot(self.df.index[1:]+st, self.df.loc[1:, ['a_hat_t_upper']],'--g', label='upperbound')
+        ax[0,1].plot(self.df.index[1:(len(self.df)-1)]+st, self.df.loc[1:(len(self.df)-2), ['V_t']],'-k', label='V_t')
+        ax[1,0].plot(self.df.index[1:]+st, self.df.loc[1:, ['R_t']],'-k', label='r_t')
         ax[1,0].axhline(y=0)
-        ax[1,1].plot(self.df.index[:(len(self.df)-1)], self.df.loc[:(len(self.df)-2), ['N_t']],'-k', label='N_t')
+        ax[1,1].plot(self.df.index[:(len(self.df)-1)]+st, self.df.loc[:(len(self.df)-2), ['N_t']],'-k', label='N_t')
         self.plot_legend(ax)
+        #plt.savefig('plots/Fig_Nile_2.2.png')
+        #plt.close()
+
 
     def plot_2_3(self):
         fig, ax = self.plot('2.3: output of disturbance smoothing recursion', [
             'observation error ˆεt',
-            'observation error variance Var(εt|Yn)', 
+            'observation error standard deviation', 
             'state error ˆηt',
-            'state error variance Var(ηt|Yn)'
-            ])   
-        ax[0,0].plot(self.df.index, self.df.loc[:, ['e_t']],'-k', label='observation error')
+            'state error standard deviation'
+            ])  
+        st = self.startyear 
+        ax[0,0].plot(self.df.index+st, self.df.loc[:, ['e_t']],'-k', label='observation error')
         ax[0,0].axhline(y=0)
-        ax[0,1].plot(self.df.index, self.df.loc[:, ['e_t_std']],'-k', label='std of observation error')
-        ax[1,0].plot(self.df.index, self.df.loc[:, ['eta_t']],'-k', label='state error')
+        ax[0,1].plot(self.df.index+st, self.df.loc[:, ['e_t_std']],'-k', label='std of observation error')
+        ax[1,0].plot(self.df.index+st, self.df.loc[:, ['eta_t']],'-k', label='state error')
         ax[1,0].axhline(y=0)
-        ax[1,1].plot(self.df.index, self.df.loc[:, ['eta_t_std']],'-k', label='std of state error')
+        ax[1,1].plot(self.df.index+st, self.df.loc[:, ['eta_t_std']],'-k', label='std of state error')
         self.plot_legend(ax)
+        #plt.savefig('plots/Fig_Nile_2.3.png')
+        #plt.close()
+
 
     def plot_2_5(self):
         fig, ax = self.plot('2.5: output when observations are missing', [
@@ -252,13 +268,17 @@ class LocalLevelModel:
             'data and smoothed state ˆαt (interpolation)',
             'smoothed state variance Vt'
             ])  
-        ax[0,0].plot(self.or_df.index, self.or_df['y'],'-k', label='y')
-        ax[0,0].plot(self.df.index[1:], self.df.loc[1:, ['a_t']],'-k', label='a_t',)
-        ax[0,1].plot(self.df.index[1:], self.df.loc[1:, ['P_t']],'-k', label='P_t')
-        ax[1,0].plot(self.or_df.index, self.or_df['y'],'-k', label='y')
-        ax[1,0].plot(self.df.index[1:], self.df.loc[1:, ['a_hat_t']],'-k', label='a_hat_t')
-        ax[1,1].plot(self.df.index[1:(len(self.df)-1)], self.df.loc[1:(len(self.df)-2), ['V_t']],'-k', label='V_t')
+        st = self.startyear
+        ax[0,0].plot(self.or_df.index+st, self.or_df['y'],'-k', label='y')
+        ax[0,0].plot(self.df.index[1:]+st, self.df.loc[1:, ['a_t']],'-k', label='a_t',color='k')
+        ax[0,1].plot(self.df.index[1:]+st, self.df.loc[1:, ['P_t']],'-k', label='P_t')
+        ax[1,0].plot(self.or_df.index+st, self.or_df['y'],'-k', label='y')
+        ax[1,0].plot(self.df.index[1:]+st, self.df.loc[1:, ['a_hat_t']],'-k', label='a_hat_t', color='k')
+        ax[1,1].plot(self.df.index[1:(len(self.df)-1)]+st, self.df.loc[1:(len(self.df)-2), ['V_t']],'-k', label='V_t')
         self.plot_legend(ax)
+        #plt.savefig('plots/Fig_Nile_2.5.png')
+        #plt.close()
+
 
     def plot_2_6(self):
         fig, ax = self.plot('2.6: output of forecasting', [
@@ -267,15 +287,19 @@ class LocalLevelModel:
             'observation forecast E(yt|Yt−1)',
             'observation forecast variance Ft'
             ])  
+        st = self.startyear
         n_rows = len(self.df)-int(self.forecast)
-        ax[0,0].plot(self.or_df.index, self.or_df['y'],'b.', label='y')
-        ax[0,0].plot(self.df.index[1:], self.df.loc[1:, ['a_t']],'-k', label='a_t')
-        ax[0,0].plot(self.df.index[n_rows:], self.df.loc[n_rows:, ['a_t_lower_5']],'--g', label='lowerbound')
-        ax[0,0].plot(self.df.index[n_rows:], self.df.loc[n_rows:, ['a_t_upper_5']],'--g', label='upperbound')
-        ax[0,1].plot(self.df.index[1:], self.df.loc[1:, ['P_t']],'-k', label='P_t')
-        ax[1,0].plot(self.df.index[1:], self.df.loc[1:, ['a_t']],'-k', label='a_t')
-        ax[1,1].plot(self.df.index[1:], self.df.loc[1:, ['F_t']],'-k', label='F_t')
+        ax[0,0].plot(self.or_df.index+st, self.or_df['y'],'b.', label='y')
+        ax[0,0].plot(self.df.index[1:]+st, self.df.loc[1:, ['a_t']],'-k', label='a_t')
+        ax[0,0].plot(self.df.index[n_rows:]+st, self.df.loc[n_rows:, ['a_t_lower_5']],'--g', label='lowerbound')
+        ax[0,0].plot(self.df.index[n_rows:]+st, self.df.loc[n_rows:, ['a_t_upper_5']],'--g', label='upperbound')
+        ax[0,1].plot(self.df.index[1:]+st, self.df.loc[1:, ['P_t']],'-k', label='P_t')
+        ax[1,0].plot(self.df.index[1:]+st, self.df.loc[1:, ['a_t']],'-k', label='a_t')
+        ax[1,1].plot(self.df.index[1:]+st, self.df.loc[1:, ['F_t']],'-k', label='F_t')
         self.plot_legend(ax)
+        #plt.savefig('plots/Fig_Nile_2.6.png')
+        #plt.close()
+
 
     def plot_2_7(self):
         fig, ax = self.plot('2.7: output standardised prediction errors', [
@@ -284,7 +308,8 @@ class LocalLevelModel:
             'ordered residuals',
             'correlogram'
             ]) 
-        ax[0,0].plot(self.df['error'],label= 'standardised residual')
+        st = self.startyear
+        ax[0,0].plot(self.df.index+st,self.df['error'],label= 'standardised residual')
         ax[0,0].axhline(y=0)
         density = stats.gaussian_kde(self.df['error'])
         x_lim = np.linspace(-3.6,3.6)
@@ -297,7 +322,9 @@ class LocalLevelModel:
         ax[1,1].set_xlim([0, 11])
         ax[1,1].set_ylim([-0.8, 0.8])
         self.plot_legend(ax)
-       
+        #plt.savefig('plots/Fig_Nile_2.7.png')
+        #plt.close()
+
        
         #plt.bar(range(1, n), c[1:], color='grey', edgecolor='k')
         #plt.yticks((-1,-0.5,0,0.5,1))
@@ -321,18 +348,21 @@ class LocalLevelModel:
             'state residual r∗t',
             'histogram and estimated density for r∗t'
             ]) 
+        st = self.startyear
         x_lim = np.linspace(-4,3)
-        ax[0,0].plot(self.df.index[:(len(self.df)-1)], self.df.loc[:(len(self.df)-2), ['u_star']],'-k', label='u_star')
+        ax[0,0].plot(self.df.index[:(len(self.df)-1)]+st, self.df.loc[:(len(self.df)-2), ['u_star']],'-k', label='u_star')
         ax[0,0].axhline(y=0)
         density = stats.gaussian_kde(self.df['u_star'].dropna().values.tolist())
-        ax[0,1].hist(self.df.loc[:(len(self.df)-2), ['u_star']], histtype='bar', ec='k', color='white', density=1, bins=13)
+        ax[0,1].hist(self.df.loc[:(len(self.df)-2)+st, ['u_star']], histtype='bar', ec='k', color='white', density=1, bins=13)
         ax[0,1].plot(x_lim, density(x_lim), color='k')
-        ax[1,0].plot(self.df.index[:(len(self.df)-1)], self.df.loc[:(len(self.df)-2), ['r_star']],'-k', label='r_star')
+        ax[1,0].plot(self.df.index[:(len(self.df)-1)]+st, self.df.loc[:(len(self.df)-2), ['r_star']],'-k', label='r_star')
         ax[1,0].axhline(y=0)
         density = stats.gaussian_kde(self.df['r_star'].dropna().values.tolist())
-        ax[1,1].hist(self.df.loc[:(len(self.df)-2), ['r_star']], histtype='bar', ec='k', color='white', density=1, bins=13)
+        ax[1,1].hist(self.df.loc[:(len(self.df)-2)+st, ['r_star']], histtype='bar', ec='k', color='white', density=1, bins=13)
         ax[1,1].plot(x_lim, density(x_lim), color='k')
         self.plot_legend(ax)
+        #plt.savefig('plots/Fig_Nile_2.8.png')
+        #plt.close()
 
       
 
