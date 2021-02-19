@@ -325,21 +325,6 @@ class LocalLevelModel:
         #plt.savefig('plots/Fig_Nile_2.7.png')
         #plt.close()
 
-       
-        #plt.bar(range(1, n), c[1:], color='grey', edgecolor='k')
-        #plt.yticks((-1,-0.5,0,0.5,1))
-        #plt.show()
-        # n = 11
-        # c = np.zeros(n)
-        # for j in range(n):
-        #     et_sum = 0
-        #     for t in range(j+1, len(standardized_residuals)):
-        #         et_sum += (standardized_residuals[t]-m1) * (standardized_residuals[t-j]-m1)
-        #     c[j] = (1/(len(standardized_residuals)*m2)) * et_sum
-        # plt.bar(range(1, n), c[1:], color='grey', edgecolor='k')
-        # plt.yticks((-1,-0.5,0,0.5,1))
-        # plt.show()
-
 
     def plot_2_8(self):
         fig, ax = self.plot('2.8: output Diagnostic plots for auxiliary residuals', [
