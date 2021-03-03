@@ -54,8 +54,10 @@ def llik_fun_SV(theta_ini,y,I):
     l = -(I/2)*np.log(2*np.pi) -(1/2)*np.sum(np.log(F) + v**2/F)
     
     ### Still gets negative F
+    
     for i in range(len(F)-1):
       if F[i]<=0:
+        print("negative F")
         print(Z[i],P[i], F[i], v[i])
         
     return -np.mean(l)
