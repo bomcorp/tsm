@@ -49,14 +49,14 @@ def llik_fun_SV(theta_ini,y,I):
     H = np.ones(I) * sig2_u
     R = np.ones(I) 
     
-    F, K, v, a, P, T = Kalman_filter(y, H, Z, R, mean_u, T, Q, omega);
+    F, K, v, a, P, T = Kalman_filter(y, H, Z, R, mean_u, T, Q, omega)
 
     l = -(I/2)*np.log(2*np.pi) -(1/2)*np.sum(np.log(F) + v**2/F)
     
-    #### Still gets negative F
-    # for i in range(len(F)-1):
-    #   if F[i]<=0:
-    #     print(Z[i],P[i], F[i], v[i])
+    ### Still gets negative F
+    for i in range(len(F)-1):
+      if F[i]<=0:
+        print(Z[i],P[i], F[i], v[i])
         
     return -np.mean(l)
 
@@ -65,7 +65,7 @@ def main():
     global I
     
     # Import data
-    file_name = 'sv.dat'
+    file_name = 'data/sv.dat'
     columns = ['GBP/USD'] # GBP/USD daily exchange rates
     df = pd.read_csv(file_name, names = columns, header = 0) 
     df = pd.DataFrame(df)
