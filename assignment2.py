@@ -11,7 +11,7 @@ import statsmodels.formula.api as smf
 import statsmodels.stats.stattools as st
 import json
 from multiprocessing import Process, Pool
-from LocalLevelModel import LocalLevelModel as llm
+from StochasticVolatilityModel import StochasticVolatilityModel as svm
 import argparse
 import math
 
@@ -180,7 +180,7 @@ def main(gethelp, path='path', columns = [1], estimate='yes', missing='', foreca
     or_dataset = dataset
 
     #initialize
-    model = llm(dataset,or_dataset, sigma_e2_hat, sigma_eta2_hat, forecast)
+    model = svm(dataset,or_dataset, sigma_e2_hat, sigma_eta2_hat, forecast)
     model.initialize(A_1,P_1,startyear=startyear)
 
     #calculate
@@ -190,19 +190,21 @@ def main(gethelp, path='path', columns = [1], estimate='yes', missing='', foreca
 
     export_data(model.df, path)
     
-    #plot
-    if(missing == '' and forecast == ''):
-        model.plot_2_1()
-        model.plot_2_2()
-        model.plot_2_3() 
-        model.plot_2_7()
-        model.plot_2_8()
 
-    if(missing != ''  and forecast == ''):
-        model.plot_2_5()
+    model.plot_2_1()
+    # #plot
+    # if(missing == '' and forecast == ''):
+    #     model.plot_2_1()
+    #     model.plot_2_2()
+    #     model.plot_2_3() 
+    #     model.plot_2_7()
+    #     model.plot_2_8()
 
-    if(missing == '' and forecast != ''):
-        model.plot_2_6()
+    # if(missing != ''  and forecast == ''):
+    #     model.plot_2_5()
+
+    # if(missing == '' and forecast != ''):
+    #     model.plot_2_6()
 
 
 
