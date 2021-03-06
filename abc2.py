@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy import optimize, stats
 import numdifftools as nd
+import datetime
 
 
 def initializize_optimization():
@@ -41,7 +42,7 @@ def Kalman_filter(y, H, Z, R, mean_u, T, Q, omega):
     K = np.zeros(I)
     
     for i in range(I):
-        v[i] = y[i] - Z[i] * a[i] - mean_u
+        v[i] = y[i] - Z[i] * a[i] - mean_u # hij valt hierover
         F[i] = Z[i] * P[i] * np.transpose(Z[i]) + H[i]
         K[i] = T[i] * P[i] * np.transpose(Z[i]) * F[i]**(-1)
         if i < I-1:
@@ -162,13 +163,11 @@ def llik_fun_SV(theta_ini, y, I):
       if F[i]<=0:
         print('Negative prediction error variance')
         
-    return -np.mean(l)
+    return np.mean(l)
 
 
-def main():
-  
+def calculateSV():
     global I
-    
     # Import data
     file_name = 'data/sv.dat'
     columns = ['GBP/USD'] # GBP/USD daily exchange rates
@@ -231,6 +230,99 @@ def main():
     kappa = 0
     alpha_hat_adj = alpha_hat  + kappa
     fig_14_5_ii_p2(x, alpha_hat_adj) # For loop klein beetje aanpassen
+
+
+
+
+def calculateVI():
+
+    global I
+    # Import data
+    file_name = 'data/oxfordmanrealizedvolatilityindices.csv'
+    columns = ['close_price', 'rv5'] # GBP/USD daily exchange rates
+    df = pd.read_csv(file_name, delimiter= ',') 
+    df = pd.DataFrame(df)
+    df = df[df['Symbol']=='.SPX']
+    df =df.loc[df["Date"].between('2016-03-4', '2025-02-05')]
+    df = df[columns]
+    print(df)
+
+    #print(df)
+    #y =  df['close_price'].pct_change()
+    
+    y = np.log(df['close_price']).diff() #als value 0 is dan demeaning doen
+    
+    y.at[0] = np.average(y.dropna()) #mogen we de eerste nan wegdoen? of vullen met mean?
+    print(len(y))
+
+    
+    I = len(y)
+    mean_y = np.mean(y)
+    #print(mean_y)
+    x = np.log((y - mean_y)**2)
+    y = y.values.tolist()
+    for i in range(len(y)-1):
+        if((y[i] - mean_y)**2<= 0.0000):
+            print((y[i] - mean_y)**2)
+    
+    theta_ini, theta_bnds, options = initializize_optimization()
+    # Optimize
+    results = optimize.minimize(llik_fun_SV, theta_ini, args=(x,I),
+                                  options = options,
+                                  method='L-BFGS-B', bounds=(theta_bnds))
+
+
+
+    fig_14_5_i(y)   
+
+    # eb)
+    fig_14_5_ii_p1(x)
+
+    # ec)
+    para_est = results.x
+    LL = results.fun
+    print("Parameters estimates: \n", para_est) 
+    print('log likelihood value: \n', LL)
+    print('exit flag: \n', results.success)
+    
+    # hessian = nd.Hessian(llik_fun_SV)(results.x,x,I)
+
+    # print('Standard Errors:')
+    # standard_errors = np.sqrt(np.linalg.inv(hessian).diagonal())
+    # print(standard_errors)
+    
+    # print('t-statistics:')
+    # t_stats = results.x/standard_errors
+    # print(t_stats)
+    
+    # print('p-values:')
+    # print(2*(stats.norm.cdf(-np.abs(t_stats))))
+    
+    # 2d)
+    sig2_u = (np.pi**2)/2      # u = log(eps_t**2)
+    mean_u = -1.27
+    
+    H = np.ones(I)* sig2_u
+    R = np.ones(I)
+    Z = np.ones(I)
+    T = np.ones(I)*para_est[1]
+    Q = np.ones(I)*para_est[2]
+    omega = para_est[0]
+    
+    # Run KF for ML values, then run KS
+    F, K, v, a, P, T = Kalman_filter(x, H, Z, R, mean_u, T, Q, omega)
+    L, V, N, alpha_hat, r = Kalman_state_smoothing(y, a, v, P, F, K, T, Z)
+    
+    kappa = 0
+    alpha_hat_adj = alpha_hat  + kappa
+    fig_14_5_ii_p2(x, alpha_hat_adj) # For loop klein beetje aanpassen
+
+
+def main():
+  
+    
+    
+    calculateVI()
     
     
 if __name__ == '__main__':
