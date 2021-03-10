@@ -1,106 +1,119 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from scipy import optimize, stats
+import numdifftools as nd
+import datetime
+import csv
 import time
 
+def draw_numbers(mean, variance, N, seed):
+    x = np.zeros(N)
+    for i in range(N):
+        seed += 1
+        np.random.seed(seed)
+        x[i] = np.random.normal(mean[i], np.sqrt(variance), 1)
+    return x, seed
 
-def main():
-    global I
-    np.random.seed(8698)
+def calc_weights(alpha_tilde, N, y, sig2_epsilon, prev_weights):
+    vector = np.zeros(N)
+    for i in range(N):
+        sub1 = -0.5 * np.log(2 * np.pi)
+        sub2 = -0.5 * np.log(sig2_epsilon)
+        sub3 = - 0.5 * (sig2_epsilon ** (-1))
+        sub4 = (y - alpha_tilde[i]) ** 2
+        number = prev_weights[i] * np.exp(sub1 + sub2 + sub3 * sub4) ################
+        vector[i] = number
+    return vector
 
+def normalise(vector):
+    total = sum(vector)
+    return np.array(vector) / total
+
+def calc_P(w_norm, alpha_tilde, a_hat, N):
+    total = 0
+    for i in range(N):
+        total += w_norm[i] * (alpha_tilde[i] ** 2)
+    return total - a_hat ** 2
+
+def startup():
     # Import data
-    file_name = 'sv.dat'
-    columns = ['GBP/USD']  # GBP/USD daily exchange rates
-    df = pd.read_csv(file_name, names=columns, header=0)
-    df = pd.DataFrame(df)
-    y = df['GBP/USD'] / 100
-    I = len(y)
-    mean_y = np.mean(y)
-    x = np.log((y - mean_y) ** 2)
+    columns = ["Annual flow volume at Aswan (river Nile)"]
+    csv_file = 'data/SPX_2012_now.csv'
+    df = pd.read_csv(csv_file, names=columns, header=0)
 
-    N = 1000
+    ### y = data/observations
+    y = df["Annual flow volume at Aswan (river Nile)"]
+
+    # omega = -0.08774252
+    # phi = 0.99123019
+    # sig2_eta = 1469.1
+    # sig2_epsilon = 15099
+
+    #     Perform parameter estimation...
+    # q: 593067697.554        sigma_e2_hat: 0.000     sigma_eta2_hat: 682.469
+    # estimates:
+    # sigma_e2_hat: 1.1507439235540047e-06
+    # sigma_eta2_hat: [682.46904922]
+
+    I = len(y)
+    N = 10000
     omega = -0.08774252
     phi = 0.99123019
-    sig2_eta = 0.00699875
-    mean_AR = 0
-    var_AR = sig2_eta / (1 - phi ** 2)
+    sig2_eta = 1469.1
+    sig2_epsilon = 15099
 
-    a = np.zeros((I, N))
-
-    # Initialize alpha
-    for i in range(N):
-        a[0, i] = np.random.normal(mean_AR, np.sqrt(var_AR), 1)#############################sqrt variance
-
-    for t in range(I):
-        for i in range(1, N):
-            # Draw N values alpha
-            a[t, i] = np.random.normal(a[t - 1, i], np.sqrt(sig2_eta), 1)#################sqrt
-
-    plt.plot(a, linestyle="", marker="o", color='k', markersize=2)
-    plt.title('a')
-    plt.show()
+    alpha_tilde = np.zeros((I, N))
 
     w = np.zeros((I, N))
-    w_sum = np.zeros(I)
     w_norm = np.zeros((I, N))
 
-    for t in range(I):
-        total = 0
-        for i in range(N):
-            # compute weights
-            sub1 = -0.5 * np.log(2*np.pi*sig2_eta)
-            sub2 = - 0.5 * a[t, i]
-            sub3 = - (0.5/sig2_eta)
-            sub4 = np.exp(-a[t, i])
-            sub5 = y[t]**2 ### we moeten formule 1: y_t gebruiken, niet de x_t = log(y-u)**2
-            number = np.exp(sub1 + sub2 + sub3*sub4*sub5) ################# 1/ sig2eta
-            w[t, i] = number
-            total += number
-        w_sum[t] = total
-
-    for j in range(I):
-        for i in range(N):
-            # normalize weights
-            w_norm[j, i] = w[j, i] / w_sum[j]
-
-    plt.plot(w, linestyle="", marker="o", color='k', markersize=2)
-    plt.title('w')
-    plt.show()
-
-    plt.plot(w_norm, linestyle="", marker="o", color='k', markersize=2)
-    plt.title('w_norm')
-    plt.show()
-
     a_hat = np.zeros(I)
-    a_temp = np.zeros(N)
 
-    for j in range(I):
-        for i in range(N):
-            # compute filtering expectation
-            a_temp[i] = w_norm[j, i] * a[j, i]
-        a_hat[j] = np.sum(a_temp)
-        a_temp = np.zeros(N)
+    P_hat = np.zeros(I)
 
+    return y, I, N, sig2_eta, sig2_epsilon, alpha_tilde, w, w_norm, a_hat, P_hat
+
+def main():
+    seed = 5023
+    y, I, N, sig2_eta, sig2_epsilon, alpha_tilde, w, w_norm, a_hat, P_hat = startup()
+
+    alpha_tilde[0, :], seed = draw_numbers(np.ones(N) * np.mean(y), sig2_eta, N, seed)
+    w[0, :] = calc_weights(alpha_tilde[0, :], N, y[0], sig2_epsilon, np.ones(N) / N)
+    w_norm[0, :] = normalise(w[0, :])
+    a_hat[0] = sum(np.array(w_norm[0, :]) * np.array(alpha_tilde[0, :]))
+    P_hat[0] = calc_P(w_norm[0, :], alpha_tilde[0, :], a_hat[0], N)
+
+    for t in range(1, I):
+        alpha_tilde[t, :], seed = draw_numbers(alpha_tilde[t-1, :], sig2_eta, N, seed)
+        w[t, :] = calc_weights(alpha_tilde[t, :], N, y[t], sig2_epsilon, w_norm[t-1, :])
+        w_norm[t, :] = normalise(w[t, :])
+        a_hat[t] = sum(np.array(w_norm[t, :]) * np.array(alpha_tilde[t, :]))
+        P_hat[t] = calc_P(w_norm[t, :], alpha_tilde[t, :], a_hat[t], N)
+
+    # plt.plot(alpha_tilde, linestyle="", marker="o", color='k', markersize=2)
+    # plt.title('a')
+    # plt.show()
+    #
+    # plt.plot(w, linestyle="", marker="o", color='k', markersize=2)
+    # plt.title('w')
+    # plt.show()
+    #
+    # plt.plot(w_norm, linestyle="", marker="o", color='k', markersize=2)
+    # plt.title('w_norm')
+    # plt.show()
+
+    plt.plot(y, linestyle="", marker="o", color='k', markersize=2)
     plt.plot(a_hat, color='r')
     plt.title('a_hat')
     plt.show()
-
-    P_hat = np.zeros(I)
-    P_temp = np.zeros(N)
-
-    for j in range(I):
-        for i in range(N):
-            # compute filtering variance
-            P_temp[i] = w_norm[j, i] * (a[j, i] ** 2) - a_hat[j] ** 2
-        P_hat[j] = np.sum(P_temp)
-        P_temp = np.zeros(N)
 
     plt.plot(P_hat, color='r')
     plt.title('P_hat')
     plt.show()
 
-    ESS = 100 * (1 / w_sum ** 2)
-    print(ESS)
+    ESS = 100 * (1 / sum(np.array(w_norm)**2))
+    # print(ESS)
 
 
 if __name__ == '__main__':
